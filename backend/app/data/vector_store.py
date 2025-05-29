@@ -7,10 +7,25 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from app.data.chunking import Chunking
+
+
+
 class PineconeStore:
     def __init__(self, api_key: str, index_name: str, dimension: int = 1536, cloud: str = "aws", region: str = "us-east-1"):
         
         self.pc = Pinecone(api_key=api_key)
+        self.hf = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-mpnet-base-v2" ,
+    model_kwargs={'device': 'cpu'},
+    encode_kwargs={'normalize_embeddings': False}
+        
+)
+        
+        self.chunking = Chunking()
+
         
         # Check if index exists, create if it doesn't
         existing_indexes = [index.name for index in self.pc.list_indexes()]
@@ -28,18 +43,12 @@ class PineconeStore:
         
         # Connect to the index
         self.index = self.pc.Index(index_name)
-        self.embed_model = OpenAIEmbeddings()
-    
-    def split_text_to_chunks(self, text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> List[str]:
-        splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size, 
-            chunk_overlap=chunk_overlap
-        )
-        return splitter.split_text(text)
+      
+
     
     def upsert_texts(self, text: str, namespace: str = ""):
-        chunks = self.split_text_to_chunks(text)
-        embeddings = self.embed_model.embed_documents(chunks)
+        chunks =  [c["text"] for c in self.chunking.parallel_chunking(text)]
+        embeddings = self.hf.embed_documents(chunks)
         
         # Create vectors with proper format for new Pinecone client
         vectors = [
