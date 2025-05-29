@@ -4,12 +4,10 @@ import os
 import tempfile
 import PyPDF2
 from app.model.ai_chain import AIBot
-
 from app.data.vector_store import PineconeStore
 
 router = APIRouter()
 
-chat_bot = AIBot(api_key=os.getenv("OPENAI_API_KEY"))
 pinecone_store = PineconeStore(
     api_key=os.getenv("PINECONE_API_KEY"),
     index_name=os.getenv("PINECONE_INDEX_NAME", "pdf-documents"),
