@@ -14,6 +14,17 @@ pinecone_store = PineconeStore(
     dimension=1536
 )
 
+
+
+
+from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import JSONResponse
+import tempfile
+import os
+import PyPDF2
+
+router = APIRouter()
+
 @router.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
@@ -22,25 +33,27 @@ async def upload_pdf(file: UploadFile = File(...)):
     temp_file_path = None
     
     try:
-        # Save uploaded file temporarily
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
             temp_file_path = temp_file.name
             content = await file.read()
             temp_file.write(content)
         
-        # Extract text from PDF
+      
         text = ""
         with open(temp_file_path, 'rb') as pdf_file:
             pdf_reader = PyPDF2.PdfReader(pdf_file)
             for page in pdf_reader.pages:
-                text += page.extract_text()
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"  
         
         if not text.strip():
             return JSONResponse(status_code=400, content={"error": "No text could be extracted from the PDF."})
         
-        # Store in Pinecone
+        
         pinecone_store.upsert_texts(text)
-        print(pinecone_store.get_index_stats)
+        print(pinecone_store.get_index_stats()) 
         
         return JSONResponse(
             status_code=200,
@@ -50,15 +63,11 @@ async def upload_pdf(file: UploadFile = File(...)):
                 "text_length": len(text)
             }
         )
-        
     except Exception as e:
-        print(f"{e}")
-        return JSONResponse(status_code=500, content={"error": f"Processing failed: {str(e)}"})
-    
+        return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
-        # Clean up temp file
         if temp_file_path and os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)
+            os.remove(temp_file_path)
 
 @router.post("/query")
 async def query_documents(query: str, top_k: int = 5):
