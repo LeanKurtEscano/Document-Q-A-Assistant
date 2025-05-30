@@ -28,8 +28,7 @@ class PineconeStore:
         
         self.chunking = Chunking()
 
-        
-        # Check if index exists, create if it doesn't
+     
         existing_indexes = [index.name for index in self.pc.list_indexes()]
         
         if index_name not in existing_indexes:
@@ -43,7 +42,7 @@ class PineconeStore:
                 )
             )
         
-        # Connect to the index
+      
         self.index = self.pc.Index(index_name)
       
 
@@ -54,8 +53,7 @@ class PineconeStore:
         embeddings = self.hf.embed_documents(chunks)
         
         # Create vectors with proper format for new Pinecone client
-        uid = str(uuid.uuid4())  # Unique ID per call
-
+        uid = str(uuid.uuid4()) 
         vectors = [
             {
                 "id": f"{uid}-{i}",

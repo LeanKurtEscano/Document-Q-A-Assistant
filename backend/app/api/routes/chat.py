@@ -7,7 +7,7 @@ import pdfplumber
 from dotenv import load_dotenv
 import tempfile
 import os
-
+from app.model.ai_chain import QABot
 load_dotenv()
 pinecone_store = PineconeStore(
     api_key=os.getenv("PINECONE_API_KEY"),
@@ -16,6 +16,7 @@ pinecone_store = PineconeStore(
 )
 
 
+llm = QABot()
 
 
 
@@ -77,21 +78,18 @@ async def query_documents(query: str, top_k: int = 5):
         
         results = pinecone_store.query(query, top_k=top_k)
         
-        # Format results
-        formatted_results = []
-        for match in results.matches:
-            formatted_results.append({
-                "score": float(match.score),
-                "text": match.metadata.get("text", "")
-            })
+        context_chunks = [text for text, score in results[:3]]
+        
+        context = "\n\n".join(context_chunks)
+        
+        prompt_to_llm = llm.generate_response(query, context)
             
-        print(pinecone_store.get_index_stats)
         
         return JSONResponse(
             status_code=200,
             content={
                 "query": query,
-                "results": formatted_results
+                "results": prompt_to_llm
             }
         )
         

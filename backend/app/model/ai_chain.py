@@ -13,10 +13,9 @@ class QABot:
         prompt_template = PromptTemplate.from_template(
             """You are a helpful assistant answering questions based solely on the given context below.
 If the answer is not contained within the context, please respond with 'The Question is beyond my scope'.
+Question: {query}
 
 Context: {context}
-
-Question: {query}
 
 Answer:"""
         )

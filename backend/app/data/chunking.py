@@ -9,7 +9,7 @@ class Chunking:
         return [text[i:i + part_size] for i in range(0, len(text), part_size)]
 
     @staticmethod
-    def recursive_character_base_chunking(text: str, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def recursive_character_base_chunking(text: str, chunk_size: int = 600, chunk_overlap: int = 150):
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
