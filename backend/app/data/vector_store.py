@@ -4,19 +4,21 @@ from dotenv import load_dotenv
 from typing import List
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
+from langchain_huggingface import HuggingFaceEmbeddings
+from app.data.chunking import Chunking
+from app.services.reranker import Reranker
+import uuid
 load_dotenv()
 
-from langchain_huggingface import HuggingFaceEmbeddings
-
-from app.data.chunking import Chunking
 
 
 
 class PineconeStore:
-    def __init__(self, api_key: str, index_name: str, dimension: int = 1536, cloud: str = "aws", region: str = "us-east-1"):
+    def __init__(self, api_key: str, index_name: str, dimension: int = 768, cloud: str = "aws", region: str = "us-east-1"):
         
         self.pc = Pinecone(api_key=api_key)
+        self.reranker = Reranker()
+        self.index_name = index_name
         self.hf = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-mpnet-base-v2" ,
     model_kwargs={'device': 'cpu'},
@@ -47,13 +49,16 @@ class PineconeStore:
 
     
     def upsert_texts(self, text: str, namespace: str = ""):
+       
         chunks =  [c["text"] for c in self.chunking.parallel_chunking(text)]
         embeddings = self.hf.embed_documents(chunks)
         
         # Create vectors with proper format for new Pinecone client
+        uid = str(uuid.uuid4())  # Unique ID per call
+
         vectors = [
             {
-                "id": str(i),
+                "id": f"{uid}-{i}",
                 "values": embeddings[i],
                 "metadata": {"text": chunks[i]}
             }
@@ -74,11 +79,16 @@ class PineconeStore:
             include_metadata=True,
             namespace=namespace
         )
-        return results
+        candidate_texts = [match['metadata']['text'] for match in results['matches']]
+       
+        reranked = self.reranker.rerank(query_text, candidate_texts)
+        return reranked
     
     def delete_all(self, namespace: str = ""):
         """Delete all vectors in the specified namespace"""
-        self.index.delete(delete_all=True, namespace=namespace)
+        
+        print("deleting vectors in namespace:", namespace)
+        self.index.delete(delete_all=True,namespace=namespace)
     
     def get_index_stats(self):
         """Get statistics about the index"""

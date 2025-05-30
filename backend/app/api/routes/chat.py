@@ -2,26 +2,22 @@ from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse
 import os
 import tempfile
-import PyPDF2
-from app.model.ai_chain import AIBot
 from app.data.vector_store import PineconeStore
+import pdfplumber
+from dotenv import load_dotenv
+import tempfile
+import os
 
-router = APIRouter()
-
+load_dotenv()
 pinecone_store = PineconeStore(
     api_key=os.getenv("PINECONE_API_KEY"),
     index_name=os.getenv("PINECONE_INDEX_NAME", "pdf-documents"),
-    dimension=1536
+    dimension=768
 )
 
 
 
 
-from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import JSONResponse
-import tempfile
-import os
-import PyPDF2
 
 router = APIRouter()
 
@@ -41,19 +37,22 @@ async def upload_pdf(file: UploadFile = File(...)):
         
       
         text = ""
-        with open(temp_file_path, 'rb') as pdf_file:
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"  
+        
+        with pdfplumber.open(temp_file_path) as pdf:
+           text = "\n".join([page.extract_text() for page in pdf.pages if page.extract_text()])
         
         if not text.strip():
             return JSONResponse(status_code=400, content={"error": "No text could be extracted from the PDF."})
         
         
-        pinecone_store.upsert_texts(text)
-        print(pinecone_store.get_index_stats()) 
+        
+        stats = pinecone_store.get_index_stats()
+        namespaces = stats.get("namespaces", {})
+        if "pdf_documents" in namespaces and namespaces["pdf_documents"]["vector_count"] > 0:
+            pinecone_store.delete_all("pdf_documents")
+
+        pinecone_store.upsert_texts(text ,namespace="pdf_documents")
+       
         
         return JSONResponse(
             status_code=200,
@@ -64,6 +63,7 @@ async def upload_pdf(file: UploadFile = File(...)):
             }
         )
     except Exception as e:
+        print(f"Error processing PDF: {str(e)}")
         return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         if temp_file_path and os.path.exists(temp_file_path):
