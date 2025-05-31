@@ -83,7 +83,7 @@ async def query_documents(request: QueryRequest):
         if not query.strip():
             return JSONResponse(status_code=400, content={"error": "Query cannot be empty"})
         
-        results = pinecone_store.query_text(query_text=query, top_k=5,namespace="pdf_documents")
+        results = pinecone_store.query_text(query_text=query, top_k=10,namespace="pdf_documents")
        
         if not results:
             return JSONResponse(status_code=404, content={"error": "No results found"})

@@ -24,6 +24,13 @@ You MUST answer using ONLY the provided context. Follow these rules:
    - Explain what's missing
 4. ONLY say "I cannot answer" if the context contains ZERO relevant information
 
+**Metadata Extraction Priority**:  
+   - Always scan the first 10 lines of the context for:  
+     - Document titles, course codes (e.g., "PC 2211").  
+     - Author/contributor names(usually after the name or title of the document).
+     - Version/date markers (e.g., "v2.01182024").  
+   - Explicitly state these in the response *before* content analysis.  
+   
 ### CONTEXT ###
 {context}
 
