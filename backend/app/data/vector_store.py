@@ -69,7 +69,7 @@ class PineconeStore:
             batch = vectors[i:i + batch_size]
             self.index.upsert(vectors=batch, namespace=namespace)
     
-    def query(self, query_text: str, top_k: int = 5, namespace: str = ""):
+    def query_text(self, query_text: str, top_k: int = 5, namespace: str = ""):
         query_embedding = self.hf.embed_query(query_text)
         results = self.index.query(
             vector=query_embedding,

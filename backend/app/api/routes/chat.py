@@ -8,17 +8,21 @@ from dotenv import load_dotenv
 import tempfile
 import os
 from app.model.ai_chain import QABot
+from pydantic import BaseModel
+
+
 load_dotenv()
+
 pinecone_store = PineconeStore(
     api_key=os.getenv("PINECONE_API_KEY"),
     index_name=os.getenv("PINECONE_INDEX_NAME", "pdf-documents"),
     dimension=768
 )
 
+class QueryRequest(BaseModel):
+    query: str
 
 llm = QABot()
-
-
 
 router = APIRouter()
 
@@ -70,15 +74,22 @@ async def upload_pdf(file: UploadFile = File(...)):
         if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
 
+
+    
 @router.post("/query")
-async def query_documents(query: str, top_k: int = 5):
+async def query_documents(request: QueryRequest):
     try:
+        query = request.query
         if not query.strip():
             return JSONResponse(status_code=400, content={"error": "Query cannot be empty"})
         
-        results = pinecone_store.query(query, top_k=top_k)
-        
+        results = pinecone_store.query_text(query_text=query, top_k=5,namespace="pdf_documents")
+       
+        if not results:
+            return JSONResponse(status_code=404, content={"error": "No results found"})
+
         context_chunks = [text for text, score in results[:3]]
+
         
         context = "\n\n".join(context_chunks)
         
@@ -94,4 +105,5 @@ async def query_documents(query: str, top_k: int = 5):
         )
         
     except Exception as e:
+        print(f"Error querying documents: {str(e)}")
         return JSONResponse(status_code=500, content={"error": f"Query failed: {str(e)}"})
